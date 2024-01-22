@@ -19,6 +19,7 @@ export class SavReader{
     rowIndex: number = 0;
 
     constructor(readable: stream.Readable){
+        console.log("SavReader constructor");
         const r1 = new AsyncReader(readable);
         const r2 = new AsyncChunkReader(r1, 1024); // 1 kb
         this.reader = new CommandReader(r2);

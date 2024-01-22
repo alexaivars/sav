@@ -86,7 +86,9 @@ export class VariableRecord{
 
         vrec.writeFormat = DisplayFormat.parseInt(await reader.readInt32());
 
-        vrec.shortName = await reader.readString(8, true);
+        // vrec.shortName = await reader.readString(8, true);
+        vrec.shortName = (await reader.readString(8, true, 'utf-8')).trimRight();
+        console.log('vrec.shortName', vrec.shortName);
 
         vrec.label = null;
         if (vrec.hasLabel) {
@@ -155,8 +157,8 @@ export class VariableRecord{
         // name
         // this may later be re-named by a longvarname entry
         v.name = this.shortName;
-        
-        // type
+
+         // type
         if (this.type === 0) {
             v.type = SysVarType.numeric;
         }

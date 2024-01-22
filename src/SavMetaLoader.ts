@@ -17,7 +17,7 @@ export class SavMetaLoader{
      */
 
     static async readMeta(reader: any): Promise<SavMeta> {
-
+        
         let meta = new SavMeta();
         
 
@@ -120,6 +120,7 @@ export class SavMetaLoader{
         // save the pointer
         meta.firstRecordPosition = reader.getPosition();
 
+
         // post-process the vrecs into sysvars
         meta.sysvars =
             vrecs
@@ -127,27 +128,34 @@ export class SavMetaLoader{
             .filter(vrec => vrec) // filter out nulls because some vrecs (string continuation vrecs) can't be converted to sysvars
 
         // link extra long string vars
-        if( longStringVarsMap ){
-            for( let entry of longStringVarsMap ){
-                
+        if (longStringVarsMap) {
+            for (let entry of longStringVarsMap) {
                 let sysvar = meta.sysvars.find(sv => sv.name === entry.name);
-                const varIndex = meta.sysvars.indexOf(sysvar);
+               
+                // issue with character encoding,
+                // Ex. V�LDER$ VÅLDER$ false
+                // meta.sysvars.forEach(sv => {
+                //  console.log(sv.name, entry.name, sv.name === entry.name);
+                // });
 
-                // SPSS doesn't break apart string vars until the length > 255
-                // The pattern is that once length > 255, it breaks into nbsegments = floor((len + 251) / 252)
-                // In other words, in breaks every multiple of 252 starting at 253, with exception that it doesn't break strings < 256
-                // So it breaks at 256 (instead of 253), 505, 757, 1009, 1261, ...
+                // console.log(meta.sysvars && meta.sysvars.map(sv => sv.name));
+                if (sysvar) {
+                    const varIndex = meta.sysvars.indexOf(sysvar);
+                    const nbSegments = Math.floor((entry.length + 251) / 252);
 
-                const nbSegments = Math.floor((entry.length + 251) / 252);
-
-                // attach child string vars
-                for( let i = 1; i < nbSegments; i++ ){
-                    let childvar = meta.sysvars[varIndex + i];
-                    sysvar.__child_string_sysvars.push(childvar);
-                    sysvar.printFormat.width = entry.length; // probably not needed, but may be helpful to reader
-                    childvar.__is_child_string_var = true;
+                    // Ensure varIndex + i is within bounds
+                    for (let i = 1; i < nbSegments && varIndex + i < meta.sysvars.length; i++) {
+                        let childvar = meta.sysvars[varIndex + i];
+                        sysvar.__child_string_sysvars.push(childvar);
+                        sysvar.printFormat.width = entry.length; // probably not needed, but may be helpful to reader
+                        childvar.__is_child_string_var = true;
+                    }
+                } else {
+                    console.error(`Could not find sysvar with name: ${entry.name}`);
                 }
             }
+
+            // Filter out child string vars
             meta.sysvars = meta.sysvars.filter(v => !v.__is_child_string_var);
         }
         
